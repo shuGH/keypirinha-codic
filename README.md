@@ -16,26 +16,21 @@ https://github.com/USERNAME/keypirinha-PACKAGE/releases
 
 ## Install
 
-Once the `Codic.keypirinha-package` file is installed,
-move it to the `InstalledPackage` folder located at:
+Once the `Codic.keypirinha-package` file is installed, move it to the `InstalledPackage` folder located at:
 
 * `Keypirinha\portable\Profile\InstalledPackages` in **Portable mode**
-* **Or** `%APPDATA%\Keypirinha\InstalledPackages` in **Installed mode** (the
-  final path would look like
-  `C:\Users\%USERNAME%\AppData\Roaming\Keypirinha\InstalledPackages`)
-
+* **Or** `%APPDATA%\Keypirinha\InstalledPackages` in **Installed mode** (the final path would look like `C:\Users\%USERNAME%\AppData\Roaming\Keypirinha\InstalledPackages`)
 
 ## Usage
 
-**TODO:** list the items, if any, inserted to the Catalog by the plugin(s) of
-this package. Some plugins only make suggestions, in which case a description of
-what kind of suggestions are to be expected by the user may help.
-
+**TODO:** list the items, if any, inserted to the Catalog by the plugin(s) of this package. Some plugins only make suggestions, in which case a description of what kind of suggestions are to be expected by the user may help.
 
 ## Change Log
 
-**TODO:** describe notable changes for each release. Below is a template for
-version 1.0.
+### v1.1
+
+* Added foo item
+* Fixed bug that was doing bad things when item "bar" was selected
 
 ### v1.0
 
@@ -45,22 +40,16 @@ version 1.0.
 
 ## License
 
-**TODO:** recommended section. Below is an example that goes with the default
-LICENSE file (MIT license). Do not forget to add your name in the `LICENSE`
-file!
-
 This package is distributed under the terms of the MIT license.
 
 
 ## Credits
 
-**TODO:** optional section.
+### Autor
 
+sss
 
 ## Contribute
-
-**TODO:** optional section. Below is a template example, based on the one found
-in Keypirinha's Packages repository.
 
 1. Check for open issues or open a fresh issue to start a discussion around a
    feature idea or a bug.

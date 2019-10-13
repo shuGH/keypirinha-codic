@@ -24,5 +24,6 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-### Windows ###
+### Keypirinha ###
 build/
+ACCESS_TOKEN

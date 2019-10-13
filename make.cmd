@@ -16,6 +16,8 @@ if "%1"=="help" (
     echo   make build
     echo   make install
     echo   make py [python_args]
+    echo   make env
+    echo   make deploy
     goto end
 )
 
@@ -68,6 +70,21 @@ if "%1"=="dev" (
 
 if "%1"=="py" (
     call "%KEYPIRINHA_SDK%\cmd\kpy" %2 %3 %4 %5 %6 %7 %8 %9
+    goto end
+)
+
+REM 環境変数の設定
+if "%1"=="env" (
+    pushd "%~dp0"
+    call "%KEYPIRINHA_SDK%\cmd\kpenv"
+    popd
+    goto end
+)
+
+REM BuildしてInstall
+if "%1"=="deploy" (
+    call %0 build
+    call %0 install
     goto end
 )
 
