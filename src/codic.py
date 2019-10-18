@@ -10,8 +10,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-IS_DEBUG = True
-
 class Codic(kp.Plugin):
     """
     One-line description of your plugin.
@@ -30,7 +28,7 @@ class Codic(kp.Plugin):
 
     In rare cases, you may need an even more powerful way of telling Keypirinha
     what classes to instantiate: the ``__keypirinha_plugins__`` global variable
-    may be declared in this module. It can be either an iterable of class
+    may be declared in this module. It can be either an iterable of class・
     objects derived from :py:class:`keypirinha.Plugin`; or, even more dynamic,
     it can be a callable that returns an iterable of class objects. Check out
     the ``StressTest`` example from the SDK for an example.
@@ -39,6 +37,8 @@ class Codic(kp.Plugin):
 
     More detailed documentation at: http://keypirinha.com/api/plugin.html
     """
+
+    _debug = False
 
     # 項目の設定
     Section = namedtuple('Section', ('enabled', 'item_label', 'project_id', 'casing', 'acronym_style'))
@@ -65,14 +65,12 @@ class Codic(kp.Plugin):
         "literal": "literal"
     }
 
-    # 翻訳表示レイヤー：入力を受け取りAPIを叩く
+    # 翻訳表示カテゴリ：翻訳結果項目
     ITEMCAT_TRANSLATE = kp.ItemCategory.USER_BASE + 1
-    # 結果アクションレイヤー：結果に対しアクションを表示
+    # 結果アクションカテゴリ：アクション適用項目
     ITEMCAT_RESULT = kp.ItemCategory.USER_BASE + 2
-    # 候補選択レイヤー：一つずつ候補を表示
+    # 候補選択カテゴリ：訳語候補項目
     ITEMCAT_CANDIDATE = kp.ItemCategory.USER_BASE + 3
-
-    ITEM_ARGS_SEP = ":"
 
     CONFIG_SECTION_DEFAULTS = "defaults"
     CONFIG_SECTION_CUSTOM_ITEM = "custom_item"
@@ -90,7 +88,7 @@ class Codic(kp.Plugin):
     _sections = []
     _query = None
     _result = None
-    _words = {}
+    _words = []
 
     def __init__(self):
         super().__init__()
@@ -100,7 +98,7 @@ class Codic(kp.Plugin):
         self._sections = []
         self._query = None
         self._result = None
-        self._words = {}
+        self._words = []
 
         self._read_config()
 
@@ -139,38 +137,48 @@ class Codic(kp.Plugin):
 
         current_item = items_chain[-1]
 
-        if current_item.category() == self.ITEMCAT_TRANSLATE:
-            self._on_suggest_translate(user_input, current_item)
-        elif current_item.category() == self.ITEMCAT_RESULT:
-            self._on_suggest_result(user_input, current_item)
-        elif current_item.category() == self.ITEMCAT_CANDIDATE:
-            self._on_suggest_translate(user_input, current_item)
+        # アクセストークンがない場合はエラー
+        if not self.ACCESS_TOKEN or self.ACCESS_TOKEN == "YOUR_ACCESS_TOKEN":
+            self._on_suggest_error(user_input, "Access token is not defined! See codic configuration.")
+        else:
+            if current_item.category() == self.ITEMCAT_TRANSLATE:
+                self._on_suggest_translate(user_input, items_chain, current_item)
+            elif current_item.category() == self.ITEMCAT_RESULT:
+                self._on_suggest_result(user_input, items_chain, current_item)
+            elif current_item.category() == self.ITEMCAT_CANDIDATE:
+                self._on_suggest_candidate(user_input, items_chain, current_item)
 
-    def _on_suggest_translate(self, user_input, current_item):
+    def _on_suggest_error(self, user_input, text):
+        suggestions = [self._create_error_item(user_input, text)]
+
+        if suggestions:
+            self.set_suggestions(suggestions, kp.Match.ANY, kp.Sort.NONE)
+
+    def _on_suggest_translate(self, user_input, items_chain, current_item):
         suggestions = []
 
-        query = self._extract_search_query(current_item, user_input)
-        self._info(query)
+        self._query = self._extract_search_query(current_item, user_input)
+        self.dbg(self._query)
 
-        if len(query.text):
+        if len(self._query.text):
             if self.should_terminate(self.DEFAULT_IDLE_TIME):
                 return
 
-            result = self.Result(False, '', '')
-            words = []
+            self._result = self.Result(False, '', '')
+            self._words = []
 
             try:
-                self._query = query
                 opener = kpnet.build_urllib_opener()
-                req = self._build_api_request(query)
+                req = self._build_api_request(self._query)
 
                 with opener.open(req) as conn:
                     response = conn.read()
                 if self.should_terminate():
                     return
 
-                result, words = self._parse_api_response(response)
-                self._info(result, words)
+                self._result, self._words = self._parse_api_response(response)
+
+                self.dbg(self._result, self._words)
 
             except urllib.error.HTTPError as exc:
                 suggestions.append(self.create_error_item(
@@ -180,22 +188,32 @@ class Codic(kp.Plugin):
                     label=user_input, short_desc="Error: " + str(exc)))
                 traceback.print_exc()
 
-            suggestions = [self._create_result_item(query, result)]
+            suggestions.append(self._create_result_item(self._query, self._result))
+            word = self._get_current_word(items_chain)
+            if word:
+                is_last = (word == self._words[-1])
+                suggestions.extend(self._create_candidate_items(self._query, self._result.successful, word, "", is_last))
 
         if suggestions:
             self.set_suggestions(suggestions, kp.Match.ANY, kp.Sort.NONE)
 
-    def _on_suggest_result(self, user_input, current_item):
+    def _on_suggest_result(self, user_input, items_chain, current_item):
         pass
 
-    def _on_suggest_candidate(self, user_input, current_item):
-        pass
+    def _on_suggest_candidate(self, user_input, items_chain, current_item):
+        suggestions = []
+
+        word = self._get_current_word(items_chain)
+        if word:
+            is_last = (word == self._words[-1])
+            decided = self._remove_open_box(current_item.label())
+            suggestions.extend(self._create_candidate_items(self._query, self._result.successful, word, decided, is_last))
+
+        if suggestions:
+            self.set_suggestions(suggestions, kp.Match.ANY, kp.Sort.NONE)
 
     # アイテム選択時
     def on_execute(self, item, action):
-        if not action:
-            return
-
         if item.category() == self.ITEMCAT_TRANSLATE:
             self._on_execute_translate(item, action)
         elif item.category() == self.ITEMCAT_RESULT:
@@ -211,7 +229,8 @@ class Codic(kp.Plugin):
         name = action.name() if action else self.ACTION_COPY_RESULT
 
         if name == self.ACTION_COPY_RESULT:
-            kpu.set_clipboard(item.label())
+            decided = self._remove_open_box(item.label())
+            kpu.set_clipboard(decided)
         elif name == self.ACTION_BROWSE:
             kpu.web_browser_command(private_mode=False, url=url, execute=True)
         elif name == self.ACTION_BROWSE_PRIVATE:
@@ -220,7 +239,8 @@ class Codic(kp.Plugin):
             kpu.set_clipboard(url)
 
     def _on_execute_candidate(self, item, action):
-        pass
+        decided = self._remove_open_box(item.label())
+        kpu.set_clipboard(decided)
 
     # LaunchBoxが表示された時
     def on_activated(self):
@@ -256,14 +276,14 @@ class Codic(kp.Plugin):
         catalog = []
         settings = self.load_settings()
 
-        self._info('load setting.')
+        self.dbg('load setting.')
 
         # [default_item]
         self.DEFAULT_SECTION = self._create_section(settings, self.CONFIG_SECTION_DEFAULTS, self.DEFAULT_SECTION.item_label)
         self.DEFAULT_IDLE_TIME = settings.get_float("idle_time", section=self.CONFIG_SECTION_DEFAULTS, fallback=self.DEFAULT_IDLE_TIME, min=0.25, max=3)
         self.ACCESS_TOKEN = self._load_accesstoken(settings)
 
-        self._info(self.DEFAULT_SECTION, self.DEFAULT_IDLE_TIME, self.ACCESS_TOKEN)
+        self.dbg(self.DEFAULT_SECTION, self.DEFAULT_IDLE_TIME, self.ACCESS_TOKEN)
 
         self._sections = []
 
@@ -282,28 +302,44 @@ class Codic(kp.Plugin):
                 self.warn('Invalid section name: "{}". Skipping section.'.format(section_label))
                 continue
 
-            section = self._create_section(settings, section_label, section_name)
-            self._sections.append(section)
-
-            self._info(section)
+            self._sections.append(self._create_section(settings, section_label, section_name))
+            self.dbg(self._sections[-1])
 
             # 項目追加
-            catalog.append(self._create_translate_item(section, len(self._sections) - 1))
+            catalog.append(self._create_translate_item(self._sections[-1], len(self._sections) - 1))
 
         return catalog
 
-    # 翻訳表示に遷移する項目を作成
-    def _create_translate_item(self, section, index):
+    def _create_item_desc(self, obj, text=None, word=None):
         # pascal, camel 時しか有効でないため無視する
-        acronym_style = section.acronym_style if section.acronym_style else "default"
-        acronym_style = acronym_style if (section.casing in {"pascal", "camel"}) else ""
-        desc = "Codic Translate {}({}{}):".format(
-            "[{}] ".format(section.project_id) if section.project_id else "",
-            "{}".format(section.casing) if section.casing else "default",
-            ", {}".format(acronym_style) if acronym_style else ""
+        acronym_style = obj.acronym_style if obj.acronym_style else "default"
+        acronym_style = acronym_style if (obj.casing in {"pascal", "camel"}) else ""
+        # 長いので短く
+        if acronym_style == "ms naming guidelines":
+            acronym_style = "ms"
+        elif acronym_style == "camel strict":
+            acronym_style = "strict"
+
+        return "Codic Translate {}({}{}):{}{}".format(
+            "[{}] ".format(obj.project_id) if obj.project_id else "",
+            "{}".format(obj.casing) if obj.casing else "default",
+            ", {}".format(acronym_style) if acronym_style else "",
+            " {}".format(text) if text else "",
+            " [{}]".format(word) if word else ""
         )
 
-        self._info(section.item_label, index, str(index))
+    # エラー項目を作成
+    def _create_error_item(self, label, desc):
+        label = label if label else '-'
+        desc = "Error: {}".format(desc)
+        return self.create_error_item(
+            label=label,
+            short_desc=desc
+        )
+
+    # 翻訳表示に遷移する項目を作成
+    def _create_translate_item(self, section, index):
+        desc = self._create_item_desc(section)
 
         return self.create_item(
             category=self.ITEMCAT_TRANSLATE,
@@ -313,24 +349,15 @@ class Codic(kp.Plugin):
             args_hint=kp.ItemArgsHint.REQUIRED,
             hit_hint=kp.ItemHitHint.NOARGS)
 
-    # 結果アクションに遷移する項目を作成
+    # 翻訳結果の項目を作成
     def _create_result_item(self, query, result):
-        # pascal, camel 時しか有効でないため無視する
-        acronym_style = query.acronym_style if query.acronym_style else "default"
-        acronym_style = acronym_style if (query.casing in {"pascal", "camel"}) else ""
-        desc = "Codic Translate {}({}{}): {}".format(
-            "[{}] ".format(query.project_id) if query.project_id else "",
-            "{}".format(query.casing) if query.casing else "default",
-            ", {}".format(acronym_style) if acronym_style else "",
-            query.text if query.text else ""
-        )
-        target = query.project_id + self.ITEM_ARGS_SEP + query.casing + self.ITEM_ARGS_SEP + query.acronym_style
+        desc = self._create_item_desc(query, query.text)
 
         item = self.create_item(
             category=self.ITEMCAT_RESULT,
             label=result.translated,
             short_desc=desc,
-            target=target,
+            target="result",
             args_hint=kp.ItemArgsHint.FORBIDDEN,
             hit_hint=kp.ItemHitHint.IGNORE)
 
@@ -339,19 +366,34 @@ class Codic(kp.Plugin):
 
         return item
 
-    # @TODO: 候補選択に遷移する項目を作成
-    def _create_candidate_item(self, query, word):
-        label = word.translated + ' + ?'
-        short_desc = ""
-        item = self.create_item(
-            category=self.ITEMCAT_TRANSLATE,
-            label=label,
-            short_desc=short_desc,
-            target=label,
-            args_hint=kp.ItemArgsHint.FORBIDDEN,
-            hit_hint=kp.ItemHitHint.IGNORE)
+    # 翻訳候補の項目を作成
+    def _create_candidate_items(self, query, is_successful, word, decided, is_last=False):
+        desc = self._create_item_desc(query, query.text, word.text)
 
-        return item
+        items = []
+        for i, candidate in enumerate(word.candidates):
+            # Noneの場合は成功かどうかを見て上書き
+            if candidate is None:
+                candidate = "␣" if is_successful else word.text
+            # 複数の単語からなる文字列の場合があるため分割
+            label = decided
+            for word in candidate.split(' '):
+                label = self._get_convined_word(query, word, label)
+            item = self.create_item(
+                category=self.ITEMCAT_RESULT if is_last else self.ITEMCAT_CANDIDATE,
+                label=label,
+                short_desc=desc,
+                target=str(i),
+                args_hint=kp.ItemArgsHint.FORBIDDEN,
+                hit_hint=kp.ItemHitHint.IGNORE,
+                loop_on_suggest=False if is_last else True
+            )
+
+            bag = desc.replace("Codic Translate ", "")
+            item.set_data_bag(bag)
+            items.append(item)
+
+        return items
 
     # 項目の設定を作成
     def _create_section(self, settings, section_label, section_name):
@@ -370,7 +412,7 @@ class Codic(kp.Plugin):
 
     # 入力からクエリを作成
     def _extract_search_query(self, item, user_input):
-        self._info(item.label(), item.target())
+        self.dbg(item.label(), item.target())
         index = int(item.target())
         if len(self._sections) <= index:
             return None
@@ -394,12 +436,22 @@ class Codic(kp.Plugin):
 
         words = []
         for word in data['words']:
-            words.append(self.Word(
-                word['successful'],
-                word['text'],
-                word['translated_text'],
-                [candidate['text'] for candidate in word['candidates']]
-            ))
+            successful = word['successful']
+            text = word['text']
+            # 失敗した時は空配列になるため追加
+            translated = word['translated_text'] if successful else text
+            candidates = [candidate['text'] for candidate in word['candidates']] if successful else [text]
+            word = self.Word(
+                successful,
+                text,
+                translated,
+                candidates
+            )
+            # 成功していて結果が第1候補がNoneの時は無視する（を等）
+            if successful and translated is None:
+                pass
+            else:
+                words.append(word)
 
         return result, words
 
@@ -419,7 +471,7 @@ class Codic(kp.Plugin):
             'Content-Type': 'application/json'
         }
 
-        self._info(data, headers)
+        self.dbg(data, headers)
 
         return urllib.request.Request(self.API_URL, json.dumps(data).encode(), headers)
 
@@ -437,10 +489,67 @@ class Codic(kp.Plugin):
 
         return self.BROWSE_URL + urllib.parse.urlencode(data)
 
+    # 空白記号が含まれていたら削除
+    def _remove_open_box(self, text):
+        if "␣" in text:
+            return text.replace("␣", "").strip()
+        return text
+
+
+    # 現在の単語を取得（選択済み項目数-1）
+    def _get_current_word(self, items_chain):
+        i = len(items_chain) - 1
+        return self._words[i] if len(self._words) > i else None
+
+    # 確定済みのラベルに候補を結合する
+    def _get_convined_word(self, query, candidate, decided):
+        def _capitalize(query, candidate):
+            # 頭字語は全て大文字でcandidateに入っている
+            if candidate.isupper():
+                if query.acronym_style == 'ms naming guidelines':
+                    if len(candidate) <= 2:
+                        candidate = candidate.upper()
+                    else:
+                        candidate = candidate.capitalize()
+                elif query.acronym_style == 'camel strict':
+                    candidate = candidate.capitalize()
+                else:
+                    candidate = candidate
+            else:
+                candidate = candidate.capitalize()
+            return candidate
+
+        label = ''
+        if query.casing == 'camel':
+            # 最初の単語は必ず全て小文字
+            candidate = _capitalize(query, candidate)
+            candidate = candidate if decided else candidate.lower()
+            label = ''.join([x for x in [decided, candidate] if x])
+
+        elif query.casing == 'pascal':
+            candidate = _capitalize(query, candidate)
+            label = ''.join([x for x in [decided, candidate] if x])
+
+        elif query.casing == 'lower underscore':
+            candidate = candidate.lower()
+            label = '_'.join([x for x in [decided, candidate] if x])
+
+        elif query.casing == 'upper underscore':
+            candidate = candidate.upper()
+            label = '_'.join([x for x in [decided, candidate] if x])
+
+        elif query.casing == 'hyphen':
+            label = '-'.join([x for x in [decided, candidate] if x])
+
+        else:
+            label = ' '.join([x for x in [decided, candidate] if x])
+
+        return label
+
     # アクセストークンを取得する
     def _load_accesstoken(self, settings):
         # 設定から取得
-        if not IS_DEBUG:
+        if not self._debug:
             return settings.get_stripped("access_token", section=self.CONFIG_SECTION_DEFAULTS, fallback="")
 
         # デバッグ用：ローカルファイルから取得
@@ -450,12 +559,3 @@ class Codic(kp.Plugin):
             self.warn("Failed to load AccessToken. Error: {}".format(exc))
 
         return lines[0] if lines[0] else ''
-
-    # デバッグ用：ログ出力
-    def _info(self, *args):
-        if IS_DEBUG:
-            if len(args) == 1:
-                self.info(args[0])
-            else:
-                self.info(args)
-        return

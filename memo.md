@@ -4,6 +4,10 @@
 
 公式：[API | codic](https://codic.jp/docs/api)
 
+### デバッグ
+
+* AをBに置き換えるがおかしい
+
 ### APIとクエリ
 
 * 翻訳だけならエンジンAPIしか使用しないで大丈夫

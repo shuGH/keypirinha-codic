@@ -4,6 +4,7 @@ setlocal
 set PACKAGE_NAME=Codic
 REM set INSTALL_DIR=%APPDATA%\Keypirinha\InstalledPackages
 set INSTALL_DIR=C:\Applications\Keypirinha\portable\Profile\InstalledPackages
+set KEYPIRINHA_SDK_DIRECT=..\Sdk
 
 if "%1"=="" goto help
 if "%1"=="-h" goto help
@@ -18,6 +19,14 @@ if "%1"=="help" (
     echo   make py [python_args]
     echo   make env
     echo   make deploy
+    goto end
+)
+
+REM 環境変数の設定
+if "%1"=="env" (
+    REM pushd "%~dp0"
+    call "%KEYPIRINHA_SDK_DIRECT%\cmd\kpenv.cmd"
+    REM popd
     goto end
 )
 
@@ -70,14 +79,6 @@ if "%1"=="dev" (
 
 if "%1"=="py" (
     call "%KEYPIRINHA_SDK%\cmd\kpy" %2 %3 %4 %5 %6 %7 %8 %9
-    goto end
-)
-
-REM 環境変数の設定
-if "%1"=="env" (
-    pushd "%~dp0"
-    call "%KEYPIRINHA_SDK%\cmd\kpenv"
-    popd
     goto end
 )
 
