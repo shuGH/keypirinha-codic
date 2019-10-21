@@ -4,10 +4,6 @@
 
 公式：[API | codic](https://codic.jp/docs/api)
 
-### デバッグ
-
-* AをBに置き換えるがおかしい
-
 ### APIとクエリ
 
 * 翻訳だけならエンジンAPIしか使用しないで大丈夫
@@ -53,7 +49,6 @@ PascalCase / camelCaseの時のみ
 POST https://api.codic.jp/v1/engine/translate.json HTTP/1.1
 Authorization: Bearer YOUR_ACCESS_TOKEN
 content-type: application/json
-
 {
     "text": "本当に存在するか"
 }
@@ -106,16 +101,4 @@ GET https://api.codic.jp/v1/engine/translate.json?project_id=123&text=こんに�
     }
   ]
 }
-```
-
-## ■ Keypirinhaについて
-
-### カスタムコマンド例
-
-```
-[custom_item/TranslateToEnglish]
-enable = yes
-item_label = ToEn:
-input_lang = auto
-output_lang = en
 ```

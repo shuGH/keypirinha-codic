@@ -1,59 +1,62 @@
 # Keypirinha Plugin: Codic
 
-This is Codic, a plugin for the
-[Keypirinha](http://keypirinha.com) launcher.
+ネーミングサービス「Codic」を「Keypirinha」から使えるようにするプラグイン
 
-**TODO:** write a brief description of this package. Optionally add a
-screenshot.
+This is a plugin of [Keypirinha](http://keypirinha.com) for using [Codic](https://codic.jp/).
 
-
-## Download
-
-**TODO:** indicate where the latest `.keypirinha-package` file can be
-downloaded. For example a URL to the `releases` list like:
-https://github.com/USERNAME/keypirinha-PACKAGE/releases
-
+![Qiita](./screenshot.gif)
 
 ## Install
 
-Once the `Codic.keypirinha-package` file is installed, move it to the `InstalledPackage` folder located at:
+### Managed
 
-* `Keypirinha\portable\Profile\InstalledPackages` in **Portable mode**
-* **Or** `%APPDATA%\Keypirinha\InstalledPackages` in **Installed mode** (the final path would look like `C:\Users\%USERNAME%\AppData\Roaming\Keypirinha\InstalledPackages`)
+Use [PackageControl](https://github.com/ueffel/Keypirinha-PackageControl), a package manager that easy to install third-party packages.
+
+### Manually
+
+1. Download the latest `Codic.keypirinha-package` file from [Release](https://github.com/shuGH/keypirinha-codic/releases).
+2. Move it to the `InstalledPackage` folder located at:
+    * `Keypirinha\portable\Profile\InstalledPackages` in **Portable mode**
+    * `%APPDATA%\Keypirinha\InstalledPackages` in **Installed mode**
 
 ## Usage
 
-**TODO:** list the items, if any, inserted to the Catalog by the plugin(s) of this package. Some plugins only make suggestions, in which case a description of what kind of suggestions are to be expected by the user may help.
+1. Codicのページから **`アクセストークン`** を取得してください
+    * cf. https://codic.jp/docs/api#authorization
+2. Codicプラグインの設定を開き、アクセストークンを記入してください
+3. Keypirinha を起動し、`Codic:` と打ち込んでください
+    * デフォルトのラベルは変更可能です
+    * ケース等の設定毎に個別の名前を定義可能です
+
+　
+
+1. Get **`Acccess Token`** to use Codic api.
+    * cf. https://codic.jp/docs/api#authorization
+2. Open codic plugin configuration, and write your Acccess Token to `codic.ini`.
+3. Launch keypirinha and type `Codic:`.
+    * Default label name is changeable, and you can defaine other labels by each casing.
+
+## Configure
+
+You can set Project ID, Casing, Accronim Style and more.
+See `codic.ini` file for details.
 
 ## Change Log
 
 ### v1.1
 
-* Added foo item
-* Fixed bug that was doing bad things when item "bar" was selected
+* Added item to choose from candidates.
 
 ### v1.0
 
-* Added foo item
-* Fixed bug that was doing bad things when item "bar" was selected
-
+* Added simple feature to call translate API.
 
 ## License
 
-This package is distributed under the terms of the MIT license.
+This package is distributed under the terms of the [MIT](https://github.com/shuGH/keypirinha-codic/blob/master/LICENSE) license.
 
+##  Autor
 
-## Credits
+[Shuzo.Iwasaki](https://github.com/shuGH)
 
-### Autor
-
-sss
-
-## Contribute
-
-1. Check for open issues or open a fresh issue to start a discussion around a
-   feature idea or a bug.
-2. Fork this repository on GitHub to start making your changes to the **dev**
-   branch.
-3. Send a pull request.
-4. Add yourself to the *Contributors* section below (or create it if needed)!
+( • ̀ω•́ )و enjoy!
